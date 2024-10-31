@@ -1,0 +1,104 @@
+---
+title: "Coursework: EDA & Regression"
+subtitle: "Statistics and Machine Learning 1 - MSc Data Science"
+author: "11549067"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document: 
+    latex_engine: xelatex 
+    extra_dependencies: ["bookman"]
+---
+
+### 1. Introduction
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Libraries:
+library(rio)
+library(ggplot2)
+library(ggalluvial)
+library(ggthemes)
+library(dplyr)
+library(lubridate)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Import data
+MavenRail = import("https://github.com/Alexanderbenit7/assignment-uom-stats/raw/refs/heads/master/data/MavenRail.csv")
+ToPredict = import("https://github.com/Alexanderbenit7/assignment-uom-stats/raw/refs/heads/master/data/ToPredict(1).csv")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Date format:
+MavenRail$Departure = as.POSIXct(MavenRail$Departure, format = "%Y-%m-%d %H:%M")
+MavenRail$Scheduled.Arrival = as.POSIXct(MavenRail$Scheduled.Arrival, format = "%Y-%m-%d %H:%M")
+MavenRail$Actual.Arrival = as.POSIXct(MavenRail$Actual.Arrival, format = "%Y-%m-%d %H:%M")
+```
+
+### 2. Brief description of data
+
+
+
+
+### 3. Exploratory data analysis 
+
+
+##### 3.1. Flow
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Count flows
+flow_data = as.data.frame(table(MavenRail$Departure.Station, MavenRail$Arrival.Station))
+names(flow_data) = c("departure", "arrival", "count")
+record_data = flow_data
+flow_data = flow_data[flow_data$count > 500, ]  # Remove zero counts
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+f1 = ggplot(flow_data, aes(axis1 = departure, axis2 = arrival, y = count)) +
+  geom_alluvium(aes(fill = departure)) +
+  geom_stratum(size = .1) +
+  geom_text(stat = "stratum",
+            aes(label = after_stat(stratum)),
+            size = 2) +
+  scale_x_discrete(limits = c("Departure", "Arrival"),
+                   expand = c(0.15, 0.05)) +
+  theme_void() + 
+  theme(legend.position = "none")
+
+f1 + theme_void() + 
+  theme(legend.position = "none")
+```
+
+
+##### 3.2. Days
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+MavenRail = MavenRail %>%
+  mutate(day_of_week = wday(Departure, label = TRUE, week_start = 1),
+         hour = hour(Departure))
+
+# Count departures per day of the week
+departures_day_hour = MavenRail %>%
+  count(day_of_week, hour)
+
+#Complete cases
+departures_day_hour = departures_day_hour[complete.cases(departures_day_hour),]
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=7.5, fig.height=6}
+ggplot(departures_day_hour, aes(x = day_of_week, y = hour, fill = n)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "darkorange", name = "Departures") +
+  labs(x = " ", y = " ") +
+  scale_y_reverse(breaks = seq(0, 23, by = 3)) +  # Display all hours from 0 to 23
+  theme_minimal() +
+  theme(panel.grid = element_blank()) +
+  theme(legend.position="top",
+        legend.direction="horizontal",
+        legend.key.width=unit(2, "cm"),
+        legend.key.height=unit(0.25, "cm"),
+        legend.title = element_blank(),
+        axis.text = element_text(size = 7))
+```
+
+
+### 4. Add _DelayInMinutes_ to the dataset
