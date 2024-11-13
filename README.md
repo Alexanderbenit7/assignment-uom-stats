@@ -5,4 +5,5 @@ This report is the coursework for the *Statistics and Machine Learning 1* module
 Content of repo:
 
 - _data_: Data files for analysis
+- _coursework.Rmd_: R code
 
