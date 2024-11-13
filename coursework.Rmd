@@ -2,14 +2,11 @@
 title: "Coursework: EDA & Regression"
 subtitle: "Statistics and Machine Learning 1 - MSc Data Science"
 author: "11549067"
-date: "`r Sys.Date()`"
 output: 
   pdf_document: 
     latex_engine: xelatex 
-    extra_dependencies: ["bookman"]
+    extra_dependencies: ["helvet"]
 ---
-
-### 1. Introduction
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 #Libraries:
@@ -19,6 +16,15 @@ library(ggalluvial)
 library(ggthemes)
 library(dplyr)
 library(lubridate)
+library(gridExtra)
+library(hrbrthemes)
+library(cowplot)
+library(modelsummary)
+library(margins)
+library(tidyr)
+library(stringr)
+library(equatiomatic)
+library(pROC)
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
@@ -34,25 +40,166 @@ MavenRail$Scheduled.Arrival = as.POSIXct(MavenRail$Scheduled.Arrival, format = "
 MavenRail$Actual.Arrival = as.POSIXct(MavenRail$Actual.Arrival, format = "%Y-%m-%d %H:%M")
 ```
 
-### 2. Brief description of data
+
+## 1. Brief description of the Data
+
+The dataset used in this report contains information on rail journeys made by passengers in the UK between 1 January and 30 April 2024. In total, the dataset includes records of 31,645 journeys with attributes like the payment method, departure and arrival stations, type of tickets, prices and dates and hours of departure and arrival.
+
+## 2. Exploratory data analysis 
+
+### 2.1. Ticket class, ticket types, rail card usage and payment methods
+
+Roughly nine out of ten tickets were purchased in the “Standard” class. Slightly more than half of the passengers bought their tickets in advance. Six out of ten tickets were purchased using credit cards. Over 60% of passengers did not use a rail card.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ticketsClass = MavenRail %>%
+  group_by(Ticket.Class) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+
+ticketsType = MavenRail %>%
+  group_by(Ticket.Type) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+
+PayMethod = MavenRail %>%
+  group_by(Payment.Method) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+
+RailCard = MavenRail %>%
+  group_by(Railcard) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Ticket
+pc1 = ggplot(ticketsClass, aes(x = "", y = Count, fill = Ticket.Class)) +
+  geom_bar(width = 1, stat = "identity", alpha = 0.85) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), 
+            size = 2) + 
+  labs(title = "Graph 1\nTicket Class Distribution", x = NULL, y = NULL, fill = "Ticket Class:") +
+  theme_void() +
+  
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")) +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 4),  
+    legend.text = element_text(size = 4),   
+    plot.title = element_text(size = 8)  
+  ) 
+
+#Ticket
+pc2 = ggplot(ticketsType, aes(x = "", y = Count, fill = Ticket.Type)) +
+  geom_bar(width = 1, stat = "identity", alpha = 0.85) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), 
+            size = 2) +  
+  labs(title = "Ticket Type Distribution", x = NULL, y = NULL, fill = "Ticket Type:") +
+  theme_void() +
+
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")) +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 4),  
+    legend.text = element_text(size = 4),   
+    plot.title = element_text(size = 8))
+
+#Payment method
+pc3 = ggplot(PayMethod, aes(x = "", y = Count, fill = Payment.Method)) +
+  geom_bar(width = 1, stat = "identity", alpha = 0.85) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), 
+            size = 2) +  
+  labs(title = "Payment method", x = NULL, y = NULL, fill = "Method:") +
+  theme_void() +
+  
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")) +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 4),  
+    legend.text = element_text(size = 4),   
+    plot.title = element_text(size = 8) 
+  ) 
+
+#Rail card
+pc4 = ggplot(RailCard, aes(x = "", y = Count, fill = Railcard)) +
+  geom_bar(width = 1, stat = "identity", alpha = 0.85) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), 
+            size = 2) +  # Reduced text size for values
+  labs(title = "Rail card", x = NULL, y = NULL, fill = "Type:") +
+  theme_void() +
+
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")) +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 4), 
+    legend.text = element_text(size = 4),  
+    plot.title = element_text(size = 8))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=7, fig.height=4.5}
+grid.arrange(pc1, pc2, pc3, pc4, ncol = 2)
+```
+
+### 2.2. Ticket prices distribution
+
+The average ticket price was £23. Graph 2 shows the distribution of ticket prices, revealing a concentration of tickets at the lower end of the price range. 25% of tickets cost £5 or less and at least half of the tickets were priced at £11 or less.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=7, fig.height=3}
+mean_price = mean(MavenRail$Price, na.rm = TRUE)
+p25 = quantile(MavenRail$Price, 0.25, na.rm = TRUE)
+p50 = quantile(MavenRail$Price, 0.5, na.rm = TRUE)
+p75 = quantile(MavenRail$Price, 0.75, na.rm = TRUE)
+
+main_plot = ggplot(MavenRail, aes(x = Price)) + 
+  geom_histogram(binwidth = 10, fill = "lightblue", color = "black", alpha = .85, size = .1) +
+  labs(title = "Graph 2", x = "Values", y = " ") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 11)) +
+  geom_vline(xintercept = mean_price, color = "red", linewidth = 1) +
+  geom_vline(xintercept = p25, color = "blue", linetype = "dotted", linewidth = 0.8) +
+  geom_vline(xintercept = p50, color = "darkgreen", linetype = "dotted", linewidth = 0.8) +
+  geom_vline(xintercept = p75, color = "orange", linetype = "dotted", linewidth = 0.8)
+
+# Create the legend text
+legend_text = ggdraw() + 
+  draw_text(
+    paste(
+      "Mean: ", round(mean_price, 2), "\n",
+      "P25: ", round(p25, 2), "\n",
+      "P50: ", round(p50, 2), "\n",
+      "P75: ", round(p75, 2)
+    ),
+    x = 0, y = 0.5, hjust = 0, vjust = 1, size = 8
+  )
+
+combined_plot = plot_grid(main_plot, legend_text, ncol = 2, rel_widths = c(8, 1))
+
+print(combined_plot)
+```
 
 
+### 2.3. Origin and destination
 
-
-### 3. Exploratory data analysis 
-
-
-##### 3.1. Flow
+10 station combinations accounted for 80% of all journeys, equivalent to 26,094 trips. Graph 3 illustrates the most common departure and arrival stations and the connections between them. For clarity, the graph only includes station combinations with 500 or more journeys.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 # Count flows
 flow_data = as.data.frame(table(MavenRail$Departure.Station, MavenRail$Arrival.Station))
 names(flow_data) = c("departure", "arrival", "count")
-record_data = flow_data
-flow_data = flow_data[flow_data$count > 500, ]  # Remove zero counts
+record_data = flow_data # Making a copy for analysis
+flow_data = flow_data[flow_data$count > 500, ]  # For adequate visualization
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.height=3}
 f1 = ggplot(flow_data, aes(axis1 = departure, axis2 = arrival, y = count)) +
   geom_alluvium(aes(fill = departure)) +
   geom_stratum(size = .1) +
@@ -61,35 +208,37 @@ f1 = ggplot(flow_data, aes(axis1 = departure, axis2 = arrival, y = count)) +
             size = 2) +
   scale_x_discrete(limits = c("Departure", "Arrival"),
                    expand = c(0.15, 0.05)) +
+  labs(title = "Graph 3") +
   theme_void() + 
-  theme(legend.position = "none")
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 7.5, hjust = 0.1) 
+  )
 
-f1 + theme_void() + 
-  theme(legend.position = "none")
+f1
 ```
 
+### 2.4. Peak travel hours
 
-##### 3.2. Days
+The data also highlights clear peak travel hours. As shown in Graph 4, there is a marked increase in the number of journeys between 6:00 am and 9:00 am, and between 4:00 pm and 7:00 pm.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 MavenRail = MavenRail %>%
   mutate(day_of_week = wday(Departure, label = TRUE, week_start = 1),
          hour = hour(Departure))
 
-# Count departures per day of the week
 departures_day_hour = MavenRail %>%
   count(day_of_week, hour)
 
-#Complete cases
 departures_day_hour = departures_day_hour[complete.cases(departures_day_hour),]
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=7.5, fig.height=6}
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=8, fig.height=4.5}
 ggplot(departures_day_hour, aes(x = day_of_week, y = hour, fill = n)) +
   geom_tile(color = "white") +
   scale_fill_gradient(low = "white", high = "darkorange", name = "Departures") +
-  labs(x = " ", y = " ") +
-  scale_y_reverse(breaks = seq(0, 23, by = 3)) +  # Display all hours from 0 to 23
+  labs(x = " ", y = " ", title = "Graph 4") +
+  scale_y_reverse(breaks = seq(0, 23, by = 3)) +  
   theme_minimal() +
   theme(panel.grid = element_blank()) +
   theme(legend.position="top",
@@ -97,8 +246,483 @@ ggplot(departures_day_hour, aes(x = day_of_week, y = hour, fill = n)) +
         legend.key.width=unit(2, "cm"),
         legend.key.height=unit(0.25, "cm"),
         legend.title = element_blank(),
-        axis.text = element_text(size = 7))
+        axis.text = element_text(size = 7),
+         plot.title = element_text(size = 11))
 ```
 
+### 2.5. Journeys per month
 
-### 4. Add _DelayInMinutes_ to the dataset
+As shown in Graph 5, the distribution of journeys is relatively consistent across the four months of data collection, with an average of 7,440 journeys per month.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+MavenRail$month = month(ymd_hms(MavenRail$Departure), label = TRUE)
+f3 = MavenRail[complete.cases(MavenRail),] #Making a copy for analysis
+
+month_summary = f3 %>%
+  filter(!is.na(month)) %>% 
+  count(month) %>%           
+  mutate(percentage = n / sum(n) * 100)  
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=8, fig.height=3.5}
+ggplot(month_summary, aes(x = month, y = n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(n, " (", round(percentage, 1), "%)")), vjust = -0.5, size = 2.5) +
+  labs(title = "Graph 5", x = " ", y = "Number of Trips") +
+  theme_minimal() + 
+  theme(
+    axis.text.x = element_text(size = 6),        
+    axis.text.y = element_text(size = 6),        
+    axis.title.y = element_text(size = 7),
+    plot.title = element_text(size = 11),
+    panel.grid = element_blank()
+  )
+```
+
+### 2.6. Delayed and cancelled journeys
+
+Out of all recorded journeys, 87% (27,479) were on time, while 7% (2,289) were delayed, and 6% (1,877) were cancelled. Graph 6 presents the main reasons for delayed and cancelled journeys.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+delayed_cancelled_data = MavenRail %>%
+  filter(Journey.Status %in% c("Cancelled", "Delayed"))
+
+overall_summary = MavenRail %>%
+  group_by(Journey.Status) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = Count / sum(Count) * 100) %>%
+  filter(Journey.Status %in% c("Cancelled", "Delayed"))
+
+total_counts = delayed_cancelled_data %>%
+  group_by(Journey.Status) %>%
+  summarise(TotalCount = n())
+
+reason_summary = delayed_cancelled_data %>%
+  group_by(Journey.Status, Reason.for.Delay) %>%
+  summarise(Count = n()) %>%
+  left_join(total_counts, by = "Journey.Status") %>%  # Join to get the total count
+  mutate(Percentage = Count / TotalCount * 100) 
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=8, fig.height=4.5}
+ggplot(reason_summary, aes(fill = Reason.for.Delay, y = Percentage, x = Journey.Status)) + 
+  geom_bar(position = "stack", stat = "identity", alpha = .7) +
+  
+  geom_text(aes(label = paste(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), 
+            size = 3) +
+  
+  labs(title = "Graph 6", x = " ", y = " ", fill = "Reason:") +
+  
+  theme_minimal() +
+  
+  coord_flip() + 
+  theme(legend.position = "top",
+        legend.direction = "horizontal",
+        panel.grid = element_blank(),
+        plot.title = element_text(size = 11))
+```
+
+## 3. Column _DelayInMinutes_
+
+We created a new variable named _DelayInMinutes_, which calculates the delay duration in minutes for all delayed journeys. If a journey was on time or cancelled, _DelayInMinutes_ is assigned a value of NA.
+
+The average delay duration is 42 minutes. Half of the passengers (with delayed journeys) experienced a delay of 37 minutes or more, while 75% of passengers (with delayed journeys) faced a delay of at least 19 minutes.
+
+
+```{r echo = FALSE}
+MavenRail = MavenRail %>%
+  mutate(DelayInMinutes = ifelse(
+      Journey.Status == "Delayed",
+      as.numeric(difftime(Actual.Arrival, Scheduled.Arrival, units = "mins")),
+      NA
+    )
+  )
+
+summary(MavenRail$DelayInMinutes) 
+```
+
+## 4. Modeling probability of refund
+
+Now, we will focus exclusively on the journeys that were either delayed or cancelled. We will fit an appropriate regression model to predict the probability that a passenger requests a refund for their ticket. Out of the 4,166 delayed or cancelled journeys, 27% of passengers (1,114) requested a refund.
+
+First, a variable named _MediumPrice_ will be created for tickets priced above £10 and up to £30:
+
+```{r}
+dataModel = MavenRail %>%
+  filter(Journey.Status != "On Time") %>% #Journey.Status is not On Time
+  mutate(MediumPrice = ifelse(Price > 10 & Price <= 30, 1, 0))
+```
+
+Among the delayed and cancelled journeys, 749 cases meet this condition:
+
+```{r echo = FALSE}
+table(dataModel$MediumPrice)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Adding format:
+dataModel$Refund.Request = factor(dataModel$Refund.Request, levels = c("No", "Yes"))
+dataModel$Refund.Request = as.numeric(dataModel$Refund.Request) - 1
+```
+
+We fit a Generalized Linear Model (GLM) from the binomial family, as the response variable is categorical with two levels (“Yes” or “No”), using the newly created variable _MediumPrice_ as the sole predictor. The model can be formally expressed with the following formula:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+model = glm(Refund.Request ~  MediumPrice, data = dataModel, family = binomial)
+```
+
+```{r echo=FALSE}
+equatiomatic::extract_eq(model)
+```
+
+Table 1 shows that **_MediumPrice_ has a positive and statistically significant effect on the probability of requesting a refund**, with a coefficient of 0.354.
+
+```{r echo=FALSE}
+formatoNumero = function(x) {
+  sprintf("%.3f", x)  
+}
+modelrl=list('Model 1'=model)
+```
+
+```{r echo=FALSE, results='asis', cache=FALSE, hold=TRUE}
+modelsummary(modelrl,
+             fmt=formatoNumero, 
+             exponentiate = F, 
+             statistic = 'conf.int', 
+             title = "Binomial regression with one predictor",
+             stars = TRUE,
+             output = "kableExtra")
+```
+
+### 4.1. Probability given that they paid £5
+
+A £5 ticket price lies outside the range of _MediumPrice_, so the value of this variable in the formula is equal to zero. The right side of the equation, thus, simplifies to -1.076, giving us the odds expressed as follows:
+
+$$
+\frac{\text{P(Refund.Request)}}{1 - \text{P(Refund.Request)}} = e^{-1.076} = 0.341
+$$
+
+Solving the equation shows that the **probability of requesting a refund when the ticket price is £5 is 25%**.
+
+$$
+P(\text{Refund.Request}) = \frac{0.341}{1.341} = 0.254
+$$
+
+```{r echo=FALSE}
+beta_0 = -1.07572
+beta_1 = 0.35440
+
+P_Y1_X0 = 1 / (1 + exp(-(beta_0 + beta_1 * 0)))
+P_Y1_X0
+```
+
+### 4.2. Probability given that they paid £25
+
+A ticket price of £25 falls within the range of _MediumPrice_, so the value on the right side of the formula is −0.722. This results in the odds being expressed as follows:
+
+$$
+\frac{\text{P(Refund.Request)}}{1 - \text{P(Refund.Request)}} = e^{-0.722} = 0.486
+$$
+
+Solving the equation shows that the **probability of requesting a refund when the ticket price is £25 is 33%**.
+
+$$
+P(\text{Refund.Request}) = \frac{0.486}{1.486} = 0.327
+$$
+
+```{r echo=FALSE}
+P_Y1_X1 = 1 / (1 + exp(-(beta_0 + beta_1 * 1)))  # When X = 1
+P_Y1_X1
+```
+
+## 5. Predicting another dataset
+
+Using the _MavenRail_ data, we will fit an appropriate regression model to determine the likelihood of passengers in the _ToPredict_ file requesting a refund. As shown in Table 2, four binomial regression models with different combinations of predictors were built.
+
+All variables maintain their original categories, except for the variable *Price*, that was converted from a numerical variable into a factor variable with five levels for easier interpretation.
+
+
+\begin{table}[h]
+\centering
+\caption{Regression Models and Predictors}
+
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Model}       & \textbf{Predictors}                                          \\
+\hline
+First model          & Price                                                        \\
+\hline
+Second model         & Price, Railcard                                              \\
+\hline
+Third model          & Price, Railcard, Ticket class, Ticket type                   \\
+\hline
+Fourth model         & Railcard, Ticket class, Ticket type, Price, Journey status, Reason for delay \\
+\hline
+\end{tabular}
+\end{table}
+
+```{r echo=FALSE}
+#Building the model:
+dataModel$Railcard = factor(dataModel$Railcard, 
+                             levels = c("Adult", "Disabled", "None", "Senior"),
+                             labels = c("Adult", "Disabled", "None", "Senior"))
+
+dataModel$Ticket.Class = factor(dataModel$Ticket.Class, 
+                                 levels = c("First Class", "Standard"),
+                                 labels = c("First Class", "Standard"))
+
+dataModel$Ticket.Type = factor(dataModel$Ticket.Type, 
+                                levels = c("Advance", "Anytime", "Off-Peak"),
+                                labels = c("Advance", "Anytime", "Off-Peak"))
+
+dataModel$Journey.Status = factor(dataModel$Journey.Status, 
+                                   levels = c("Cancelled", "Delayed"),
+                                   labels = c("Cancelled", "Delayed"))
+
+dataModel$Reason.for.Delay = factor(dataModel$Reason.for.Delay, 
+                                     levels = c("Signal Failure", "Staff", "Staffing", 
+                                                "Technical Issue", "Traffic", "Weather"),
+                                     labels = c("Signal Failure", "Staff", "Staffing", 
+                                                "Technical Issue", "Traffic", "Weather"))
+
+dataModel$PriceNEW = factor(ifelse(dataModel$Price<=6,1,
+                                   ifelse(dataModel$Price>6 & dataModel$Price <= 16, 2,
+                                    ifelse(dataModel$Price>16 & dataModel$Price <= 42, 3,
+                                    ifelse(dataModel$Price>42 & dataModel$Price <= 76, 4,
+                                    ifelse(dataModel$Price>76,5,0))))))
+
+dataModel$PriceNEW = factor(dataModel$PriceNEW, levels = c(1:5),
+                            labels = c("Less than 6",
+                                       "Between 6 and 16",
+                                       "Between 17 and 42",
+                                       "Between 43 and 76",
+                                       "More than 76"))
+```
+
+```{r echo=FALSE}
+h1=formula(Refund.Request ~  PriceNEW)
+h2=formula(Refund.Request ~  PriceNEW + Railcard)
+h3=formula(Refund.Request ~  PriceNEW + Railcard + Ticket.Class + Ticket.Type)
+h4=formula(Refund.Request ~  PriceNEW + Railcard + Ticket.Class + Ticket.Type + Journey.Status + Reason.for.Delay)
+
+rlog1=glm(h1, data=dataModel,family = binomial)
+rlog2=glm(h2, data=dataModel,family = binomial)
+rlog3=glm(h3, data=dataModel,family = binomial)
+rlog4=glm(h4, data=dataModel,family = binomial)
+
+modelrl=list('Model 1'=rlog1,
+             'Model 2'=rlog2,
+             'Model 3'=rlog3,
+             'Model 4'=rlog4)
+```
+
+Based on these results, we observe that all predictors have a statistically significant impact on the probability of requesting a refund. Additionally, **Model 4 demonstrates the best performance among the four models:** it has the lowest Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC) values, indicating a better fit.
+
+```{r echo=FALSE}
+modelsummary(modelrl,
+             fmt = formatoNumero,  
+             exponentiate = FALSE, 
+             statistic = 'conf.int', 
+             title = "Modeling probability of requesting refund",
+             stars = TRUE,
+             output = "kableExtra")
+```
+
+```{r echo=FALSE}
+threshold = 0.5
+
+dataModel$prob_rlog1 = predict(rlog1, newdata = dataModel, type = "response")
+dataModel$prob_rlog2 = predict(rlog2, newdata = dataModel, type = "response")
+dataModel$prob_rlog3 = predict(rlog3, newdata = dataModel, type = "response")
+dataModel$prob_rlog4 = predict(rlog4, newdata = dataModel, type = "response")
+
+dataModel$pred_rlog1 = ifelse(dataModel$prob_rlog1 >= threshold, 1, 0)
+dataModel$pred_rlog2 = ifelse(dataModel$prob_rlog2 >= threshold, 1, 0)
+dataModel$pred_rlog3 = ifelse(dataModel$prob_rlog3 >= threshold, 1, 0)
+dataModel$pred_rlog4 = ifelse(dataModel$prob_rlog4 >= threshold, 1, 0)
+
+accuracy_rlog1 = mean(dataModel$pred_rlog1 == dataModel$Refund.Request)
+accuracy_rlog2 = mean(dataModel$pred_rlog2 == dataModel$Refund.Request)
+accuracy_rlog3 = mean(dataModel$pred_rlog3 == dataModel$Refund.Request)
+accuracy_rlog4 = mean(dataModel$pred_rlog4 == dataModel$Refund.Request)
+
+accuracy_results = data.frame(
+  Model = c("Model 1", "Model 2", "Model 3", "Model 4"),
+  Accuracy = c(accuracy_rlog1, accuracy_rlog2, accuracy_rlog3, accuracy_rlog4)
+)
+```
+
+```{r echo=FALSE}
+con_matrx2 = table(Actual = dataModel$Refund.Request, Predicted = dataModel$pred_rlog2)
+con_matrx3 = table(Actual = dataModel$Refund.Request, Predicted = dataModel$pred_rlog3)
+con_matrx4 = table(Actual = dataModel$Refund.Request, Predicted = dataModel$pred_rlog4)
+
+hm2 = as.data.frame(as.table(con_matrx2))
+hm3 = as.data.frame(as.table(con_matrx3))
+hm4 = as.data.frame(as.table(con_matrx4))
+
+m2 = ggplot(hm2, aes(x = Predicted, y = Actual, fill = Freq)) +
+  geom_tile() + theme_bw() + coord_equal() +
+  scale_fill_distiller(palette = "Blues", direction = 1) +
+  guides(fill = "none") +
+  geom_text(aes(label = Freq), color = "black", size = 3.5) +
+  labs(title = "Graph 7\nConfusion Matrix: Model 2") +
+  theme(
+    axis.text.x = element_text(size = 9),
+    axis.text.y = element_text(size = 6),
+    axis.title.x = element_text(size = 6),
+    axis.title.y = element_text(size = 6),
+    plot.title = element_text(size = 10) # Reduced title size
+  )
+
+m3 = ggplot(hm3, aes(x = Predicted, y = Actual, fill = Freq)) +
+  geom_tile() + theme_bw() + coord_equal() +
+  scale_fill_distiller(palette = "Blues", direction = 1) +
+  guides(fill = "none") +
+  geom_text(aes(label = Freq), color = "black", size = 3.5) +
+  labs(title = "Confusion Matrix: Model 3") +
+  theme(
+    axis.text.x = element_text(size = 9),
+    axis.text.y = element_text(size = 6),
+    axis.title.x = element_text(size = 6),
+    axis.title.y = element_text(size = 6),
+    plot.title = element_text(size = 10) # Reduced title size
+  )
+
+m4 = ggplot(hm4, aes(x = Predicted, y = Actual, fill = Freq)) +
+  geom_tile() + theme_bw() + coord_equal() +
+  scale_fill_distiller(palette = "Blues", direction = 1) +
+  guides(fill = "none") +
+  geom_text(aes(label = Freq), color = "black", size = 3.5) +
+  labs(title = "Confusion Matrix: Model 4") +
+  theme(
+    axis.text.x = element_text(size = 9),
+    axis.text.y = element_text(size = 6),
+    axis.title.x = element_text(size = 6),
+    axis.title.y = element_text(size = 6),
+    plot.title = element_text(size = 10) # Reduced title size
+  )
+```
+
+We created confusion matrices for Model 2, Model 3 and Model 4 (Model 1 predicted all cases as zero). It can be observed that the last model has the highest number of correctly predicted refund requests.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=8, fig.height=3.5}
+grid.arrange(m2, m3, m4, ncol = 3)
+```
+
+Examining the prediction accuracy of the four models, we also observe that **Model 4 has the highest performance, accurately predicting whether a passenger requested a refund (or not) in 80% of cases**.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.width=8, fig.height=4}
+ggplot(accuracy_results, aes(x = Model, y = Accuracy, group = 1)) +
+  geom_line(color = "blue", linewidth = 1) +
+  geom_point(color = "red", size = 3) +
+  ylim(0, 1) +
+  labs(
+    title = "Graph 8",
+    x = " ",
+    y = "Accuracy"
+  ) +
+    theme(plot.title = element_text(size = 11)) +
+  theme_minimal()
+```
+
+Now, we show the calculations for the passengers with the highest and lowest probabilities of requesting a refund. For the passenger with the highest probability, Model 4 predicted an **88% chance of a refund request**. This passenger paid £76 for the ticket, used an Adult railcard, had a Standard ticket class, purchased the ticket during off-peak hours, experienced a cancelled journey, and the reason for the cancellation was "Staffing."
+
+The "Adult" category in _Railcard_ and "Cancelled" category in _Journey.Status_ are reference categories, so their values are equal to zero:
+
+$$
+\log(\text{Odds})  = -0.85625 + 1.07199 + 0.40870 + 0.14556 + 1.22060 = 1.991
+$$
+
+Thus, the value of the odds is equal to 7.323:
+
+$$
+\frac{\text{P(Refund.Request)}}{1 - \text{P(Refund.Request)}} = e^{1.991} = 7.323
+$$
+
+Finally, the predicted probability of requesting a refund was 88%:
+
+$$
+P(\text{Refund.Request}) = \frac{7.323}{1 + 7.323} = 0.88
+$$
+
+```{r echo=FALSE}
+dataModel[4036,23]
+```
+
+Now, we present the calculations for the passenger with the lowest probability of requesting a refund. This passenger paid £5 for the ticket, had no railcard, chose a Standard ticket class, purchased an "Anytime" ticket, experienced a delayed journey, and the reason for the delay was the weather. **Model 4 predicts a 1% probability of a refund request for this passenger**.
+
+$$
+\log(\text{Odds}) =  -0.85625 - 1.51177 + 0.40870 - 0.99111 - 0.78077 - 0.72976 = -4.46096
+$$
+
+Thus, the value of the odds is equal to .01:
+
+$$
+\frac{\text{P(Refund.Request)}}{1 - \text{P(Refund.Request)}} = e^{-4.46} = 0.01
+$$
+
+And the predicted probability of requesting a refund is 1%:
+
+$$
+P(\text{Refund.Request}) = \frac{0.02}{1 + 0.02} = 0.01
+$$
+
+```{r echo=FALSE}
+dataModel[115,23]
+```
+
+Finally, we determine the likelihood of passengers in the file ToPredict.csv requesting a refund. This analysis is restricted for passengers with delayed or cancelled journeys, as the model was fit on that specific group.
+
+```{r echo=FALSE}
+ToPredict = ToPredict %>%
+  filter(Journey.Status != "On Time")
+
+ToPredict$Railcard = factor(ToPredict$Railcard, 
+                             levels = c("Adult", "Disabled", "None", "Senior"),
+                             labels = c("Adult", "Disabled", "None", "Senior"))
+
+ToPredict$Ticket.Class = factor(ToPredict$Ticket.Class, 
+                                 levels = c("First Class", "Standard"),
+                                 labels = c("First Class", "Standard"))
+
+ToPredict$Ticket.Type = factor(ToPredict$Ticket.Type, 
+                                levels = c("Advance", "Anytime", "Off-Peak"),
+                                labels = c("Advance", "Anytime", "Off-Peak"))
+
+ToPredict$Journey.Status = factor(ToPredict$Journey.Status, 
+                                   levels = c("Cancelled", "Delayed"),
+                                   labels = c("Cancelled", "Delayed"))
+
+ToPredict$Reason.for.Delay = factor(ToPredict$Reason.for.Delay, 
+                                     levels = c("Signal Failure", "Staff", "Staffing", 
+                                                "Technical Issue", "Traffic", "Weather"),
+                                     labels = c("Signal Failure", "Staff", "Staffing", 
+                                                "Technical Issue", "Traffic", "Weather"))
+
+# Creating the PriceNEW factor in 'ToPredict' dataset:
+ToPredict$PriceNEW = factor(ifelse(ToPredict$Price <= 6, 1,
+                                   ifelse(ToPredict$Price > 6 & ToPredict$Price <= 16, 2,
+                                    ifelse(ToPredict$Price > 16 & ToPredict$Price <= 42, 3,
+                                    ifelse(ToPredict$Price > 42 & ToPredict$Price <= 76, 4,
+                                    ifelse(ToPredict$Price > 76, 5, 0))))))
+
+ToPredict$PriceNEW = factor(ToPredict$PriceNEW, levels = c(1:5),
+                            labels = c("Less than 6",
+                                       "Between 6 and 16",
+                                       "Between 17 and 42",
+                                       "Between 43 and 76",
+                                       "More than 76"))
+
+```
+
+The results indicate that **2 out of the 6 passengers are likely to request a refund based on Model 4**. These two passengers paid more than £100 for a standard class ticket, purchased their tickets off-peak, did not use a railcard, and experienced delays due to staffing problems:
+
+```{r echo=FALSE}
+ToPredict$predicted_probabilities = predict(rlog4, ToPredict, type = "response")
+ToPredict$refund_prediction = ifelse(ToPredict$predicted_probabilities > 0.5, 1, 0)
+
+ToPredict[c(ToPredict$refund_prediction == 1),c(11,12,14)]
+```
+
