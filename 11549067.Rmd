@@ -56,7 +56,7 @@ MissingData = MavenRail %>% summarise(across(everything(), ~ sum(is.na(.))))
 MissingData
 ```
 
-The distribution of journeys is relatively consistent across the four months of data collection, with an average of 7,440 journeys per month.
+The distribution of journeys is relatively consistent across the four months of data collection, with an average of 7,911 journeys per month.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 MavenRail$month = month(ymd_hms(MavenRail$Departure), label = TRUE)
